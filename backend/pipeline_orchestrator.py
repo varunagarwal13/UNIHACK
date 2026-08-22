@@ -215,11 +215,14 @@ class PipelineOrchestrator:
         
         # Override product ID if AI detected a specific SKU
         if extracted_data.get("product_id") and extracted_data["product_id"] != product_id:
-            # We migrate properties or update existing product
             product_id = extracted_data["product_id"]
-            product.manufacturer = extracted_data.get("manufacturer")
-            product.category = extracted_data.get("category")
-            db.commit()
+            
+        # Update manufacturer and category from AI extraction
+        if extracted_data.get("manufacturer"):
+            product.manufacturer = extracted_data["manufacturer"]
+        if extracted_data.get("category"):
+            product.category = extracted_data["category"]
+        db.commit()
             
         # 2. Validation & Conflict scoring (Person 2)
         validation_results = self.validator.validate(extracted_data, existing_attributes, source_name)

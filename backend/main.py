@@ -2,7 +2,8 @@ import os
 import shutil
 import csv
 from io import StringIO
-from fastapi import FastAPI, Depends, File, UploadFile, HTTPException, Query
+from typing import Optional
+from fastapi import FastAPI, Depends, File, UploadFile, HTTPException, Query, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -330,5 +331,4 @@ def export_product_twin(
             headers={"Content-Disposition": f"attachment; filename=product_twin_{id}.csv"}
         )
 
-from typing import Optional
-from fastapi import Form
+
