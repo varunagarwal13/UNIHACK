@@ -1,22 +1,22 @@
 """
 Deterministic confidence formula (Section 3 / Person 2):
 confidence = source_quality + agreement_score + evidence_count + manufacturer_confirmation
-Kept as plain arithmetic — no LLM call — so it's fast and debuggable live in the demo.
+Kept as plain arithmetic - no LLM call - so it's fast and debuggable live in the demo.
 """
 
 WEIGHTS = {
-    "source_quality": 0.40,
-    "agreement_score": 0.30,
+    "source_quality": 0.45,
+    "agreement_score": 0.20,
     "evidence_count": 0.15,
-    "manufacturer_confirmation": 0.15,
+    "manufacturer_confirmation": 0.20,
 }
 
-def evidence_count_score(n_sources: int, cap: int = 4) -> float:
+def evidence_count_score(n_sources: int, cap: int = 2) -> float:
     return min(n_sources, cap) / cap
 
 def compute_confidence(
-    avg_trust: float,          # 0-100, mean trust score of agreeing sources
-    agreement_score: float,    # 0-1, fraction of sources that agree
+    avg_trust: float,
+    agreement_score: float,
     n_agreeing_sources: int,
     manufacturer_confirmed: bool,
 ) -> float:
@@ -32,10 +32,10 @@ def compute_confidence(
     )
     return round(min(confidence, 1.0) * 100, 1)
 
-def route(confidence: float, has_unresolved_conflict: bool) -> str:
-    """High -> auto-approve. Medium -> suggested review. Low/conflict -> human review."""
-    if has_unresolved_conflict:
-        return "human_review"
+def route(confidence: float) -> str:
+    """High -> auto-approve. Medium -> suggested review. Low -> human review.
+    Conflict presence doesn't override this - a well-supported dominant value
+    can still auto-verify even if a low-trust outlier disagreed."""
     if confidence >= 90:
         return "auto_approved"
     if confidence >= 70:

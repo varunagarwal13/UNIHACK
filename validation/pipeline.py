@@ -2,8 +2,10 @@ from validation.conflict.compare import compare_attribute
 from validation.confidence.engine import compute_confidence, route
 from validation.conflict_agent import investigate_conflict
 from validation.schemas import Attribute, Conflict, Evidence
+from validation.trust_scores import classify_source
 
-def validate_attribute(name: str, readings: list[dict]) -> tuple[Attribute, Conflict | None]:
+
+def validate_attribute(name, readings):
     result = compare_attribute(readings)
     confidence = compute_confidence(
         avg_trust=result["avg_trust_dominant"],
@@ -11,7 +13,7 @@ def validate_attribute(name: str, readings: list[dict]) -> tuple[Attribute, Conf
         n_agreeing_sources=len(result["dominant_cluster"]),
         manufacturer_confirmed=result["manufacturer_confirmed"],
     )
-    status = route(confidence, result["has_conflict"])
+    status = route(confidence)
 
     conflict = None
     if result["has_conflict"]:
@@ -29,13 +31,20 @@ def validate_attribute(name: str, readings: list[dict]) -> tuple[Attribute, Conf
         value=result["dominant_cluster"][0]["value"],
         confidence=confidence,
         status="verified" if status == "auto_approved" else status,
-        evidence=[Evidence(source=r["source"], raw_value=r["value"], source_tier=r["trust"])
-                   for r in result["dominant_cluster"]],
+        evidence=[
+            Evidence(
+                source=r["source"],
+                raw_value=r["value"],
+                source_tier=classify_source(r["source"]),
+                trust_score=r["trust"],
+            )
+            for r in result["dominant_cluster"]
+        ],
     )
     return attribute, conflict
 
-def validate_product(product_id: str, attribute_readings: dict[str, list[dict]]) -> dict:
-    """attribute_readings: {"weight": [{"source": ..., "value": ...}, ...], ...}"""
+
+def validate_product(product_id, attribute_readings):
     attributes, conflicts = {}, []
     for name, readings in attribute_readings.items():
         attr, conflict = validate_attribute(name, readings)
