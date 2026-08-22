@@ -1,6 +1,7 @@
 langchain
 langchain-community
-google-generativeai
+google-genai
 faiss-cpu
 pydantic
 python-dotenv
+sentence-transformers
