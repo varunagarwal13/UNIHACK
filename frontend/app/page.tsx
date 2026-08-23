@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import KnowledgeGraphViewer from "./KnowledgeGraphViewer";
 
 const getApiBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
   if (hostname.includes("github.dev") || hostname.includes("localhost")) {
@@ -322,7 +323,7 @@ export default function Home() {
         const b64Data = await toBase64(fileObj);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 65000); // 65s hard abort
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180s extended wait for AI chunking
 
         let uploadRes;
         try {
