@@ -1,5 +1,5 @@
 import os
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 
 def extract_images_from_pdf(pdf_path: str, output_dir: str = "./extracted_images") -> list:
     """

@@ -1,4 +1,4 @@
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 
 def extract_text_from_pdf(pdf_path: str) -> dict:
     """

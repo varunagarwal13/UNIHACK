@@ -1,5 +1,5 @@
 import logging
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 import os
 
 logger = logging.getLogger("product_twin.ocr")

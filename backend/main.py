@@ -367,7 +367,7 @@ def review_product_attribute(
 @app.get("/product/{id}/export", summary="Export product twin record")
 def export_product_twin(
     id: str,
-    format: str = Query("json", regex="^(json|csv)$"),
+    format: str = Query("json", pattern="^(json|csv)$"),
     db: Session = Depends(get_db)
 ):
     """Exports the verified product twin attributes as a downloadable JSON or CSV file."""
