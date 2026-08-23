@@ -32,9 +32,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "/tmp/uploads"
+import tempfile
+UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "uploads")
 if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 orchestrator = PipelineOrchestrator()
 
