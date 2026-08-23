@@ -302,6 +302,10 @@ export default function Home() {
       let productId = `PT-${Math.floor(1000 + Math.random() * 9000)}`;
 
       if (fileObj) {
+        if (fileObj.size > 4.5 * 1024 * 1024) {
+          throw new Error("File exceeds Vercel's 4.5MB Serverless limit. Please use a smaller PDF or compress it before uploading!");
+        }
+
         // 1. Upload Document AND Analyze (Atomic Serverless Call)
         const formData = new FormData();
         formData.append("file", fileObj);
