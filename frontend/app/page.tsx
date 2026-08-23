@@ -18,9 +18,9 @@ type StageStatus = "pending" | "active" | "completed";
 type ReviewAction = "none" | "approved" | "review";
 
 const STAGES = [
-  "Validate source",
-  "Extract specifications",
-  "Generate product twin",
+  "VALIDATE DOCUMENT (V2)",
+  "EXTRACT SPECIFICATIONS",
+  "GENERATE PRODUCT TWIN"
 ];
 
 const MOCK_CATEGORIES = [
@@ -321,17 +321,26 @@ export default function Home() {
 
         const b64Data = await toBase64(fileObj);
 
-        const uploadRes = await fetch(`${getApiBaseUrl()}/document/upload_and_analyze_base64`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            product_id: productId,
-            filename: fileObj.name,
-            file_base64: b64Data
-          })
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 65000); // 65s hard abort
+
+        let uploadRes;
+        try {
+          uploadRes = await fetch(`${getApiBaseUrl()}/document/upload_and_analyze_base64`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              product_id: productId,
+              filename: fileObj.name,
+              file_base64: b64Data
+            }),
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         if (!uploadRes.ok) throw new Error("Upload and Analysis failed");
 
