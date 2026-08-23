@@ -36,7 +36,6 @@ interface ViewerProps {
 }
 
 const getApiBase = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
   if (hostname.includes("github.dev") || hostname.includes("localhost")) {

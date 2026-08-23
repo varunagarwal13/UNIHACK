@@ -4,13 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import KnowledgeGraphViewer from "./KnowledgeGraphViewer";
 
 const getApiBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
   if (hostname.includes("github.dev") || hostname.includes("localhost")) {
     return "http://localhost:8000";
   }
-  return "https://unihack-backend.vercel.app"; // Hardcoded Vercel API URL fallback
+  return "https://unihack-backend.vercel.app";
 };
 
 type IdentifyMode = "sku" | "url";
