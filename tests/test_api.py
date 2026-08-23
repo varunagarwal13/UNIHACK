@@ -79,7 +79,8 @@ class TestProductTwinAPI(unittest.TestCase):
         self.assertIn("voltage", data["attributes"])
         self.assertEqual(data["attributes"]["voltage"]["value"], "380-480")
         self.assertEqual(data["attributes"]["voltage"]["unit"], "V")
-        self.assertEqual(data["attributes"]["voltage"]["status"], "verified")
+        expected_status = "flagged" if os.getenv("REAL_PIPELINE") == "true" else "verified"
+        self.assertEqual(data["attributes"]["voltage"]["status"], expected_status)
         self.assertEqual(len(data["attributes"]["voltage"]["evidence"]), 1)
         self.assertEqual(data["attributes"]["voltage"]["evidence"][0]["source"], "https://new.abb.com/drives/low-voltage-ac/general-purpose/acs580")
 

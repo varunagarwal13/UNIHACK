@@ -2,16 +2,46 @@ from collections import defaultdict
 from validation.trust_scores import trust_score
 
 def cluster_readings(readings: list[dict], tolerance: float = 0.02) -> list[list[dict]]:
-    """Group readings whose numeric values are within `tolerance` (relative) of each other."""
+    """Group readings whose values are within `tolerance` of each other (for numeric) or match exactly (for strings)."""
     clusters: list[list[dict]] = []
-    for r in sorted(readings, key=lambda x: x["value"]):
+    
+    # Sort readings. Fallback to string sort if type mismatch occurs
+    try:
+        sorted_readings = sorted(readings, key=lambda x: x["value"])
+    except TypeError:
+        sorted_readings = sorted(readings, key=lambda x: str(x["value"]))
+        
+    for r in sorted_readings:
         placed = False
+        r_val = r["value"]
+        
+        # Check if current value is numeric
+        try:
+            r_num = float(r_val)
+            is_r_num = True
+        except (ValueError, TypeError):
+            is_r_num = False
+            
         for c in clusters:
             ref = c[0]["value"]
-            if ref == 0:
-                match = r["value"] == 0
+            
+            # Check if reference value is numeric
+            try:
+                ref_num = float(ref)
+                is_ref_num = True
+            except (ValueError, TypeError):
+                is_ref_num = False
+                
+            if is_r_num and is_ref_num:
+                # Both are numeric, do tolerance comparison
+                if ref_num == 0:
+                    match = r_num == 0
+                else:
+                    match = abs(r_num - ref_num) / abs(ref_num) <= tolerance
             else:
-                match = abs(r["value"] - ref) / abs(ref) <= tolerance
+                # At least one is non-numeric, do string comparison
+                match = str(r_val).strip().lower() == str(ref).strip().lower()
+                
             if match:
                 c.append(r)
                 placed = True

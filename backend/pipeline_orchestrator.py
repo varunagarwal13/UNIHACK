@@ -79,20 +79,117 @@ class AIExtractor:
             }
 
 
-# Interface Stub for Person 2: Trust & Validation Engineer
+# Interface Stub & Adapter for Person 2: Trust & Validation Engineer
 class Validator:
     """
-    Mock Validator representing Person 2's validation & conflict detection logic.
-    Determines confidence scores and flags conflicts (e.g. simulating manufacturer vs distributor datasheet).
+    Validator adapter class. Connects FastAPI pipeline to Person 2's validation
+    logic in `validation/pipeline.py` when running live. Otherwise, runs local stubs.
     """
+    def __init__(self, use_real_pipeline: bool = False):
+        self.use_real_pipeline = use_real_pipeline
+
     def validate(self, extracted_data: dict, existing_attributes: list, source_name: str) -> dict:
+        if self.use_real_pipeline:
+            # 1. Gather all readings (new + existing database values)
+            attribute_readings = {}
+            
+            # Current extraction reading
+            for attr_name, attr_info in extracted_data["attributes"].items():
+                if attr_name not in attribute_readings:
+                    attribute_readings[attr_name] = []
+                attribute_readings[attr_name].append({
+                    "value": attr_info["value"],
+                    "source": source_name
+                })
+                
+            # Historical readings from other sources in DB
+            for db_attr in existing_attributes:
+                if db_attr.name not in attribute_readings:
+                    attribute_readings[db_attr.name] = []
+                for ev in db_attr.evidence:
+                    attribute_readings[db_attr.name].append({
+                        "value": db_attr.value,
+                        "source": ev.source
+                    })
+                if not db_attr.evidence:
+                    attribute_readings[db_attr.name].append({
+                        "value": db_attr.value,
+                        "source": "Existing Database Record"
+                    })
+                    
+            # 2. Invoke Person 2's validation pipeline
+            from validation.pipeline import validate_product
+            res = validate_product(extracted_data["product_id"], attribute_readings)
+            
+            # 3. Map validation schemas back to database expected formats
+            attributes = {}
+            for attr_name, attr_data in res["attributes"].items():
+                # Recover unit from inputs
+                unit = None
+                if attr_name in extracted_data["attributes"]:
+                    unit = extracted_data["attributes"][attr_name].get("unit")
+                if not unit:
+                    for db_attr in existing_attributes:
+                        if db_attr.name == attr_name:
+                            unit = db_attr.unit
+                            break
+                            
+                evidence_list = []
+                for ev in attr_data.get("evidence", []):
+                    # Recover text snippet/content
+                    content = None
+                    if ev["source"] == source_name and attr_name in extracted_data["attributes"]:
+                        content = extracted_data["attributes"][attr_name].get("snippet")
+                    else:
+                        for db_attr in existing_attributes:
+                            if db_attr.name == attr_name:
+                                for db_ev in db_attr.evidence:
+                                    if db_ev.source == ev["source"]:
+                                        content = db_ev.content
+                                        break
+                    evidence_list.append({
+                        "source": ev["source"],
+                        "page": ev.get("page"),
+                        "content": content or ev.get("raw_value")
+                    })
+                    
+                attributes[attr_name] = {
+                    "value": str(attr_data["value"]),
+                    "unit": unit,
+                    "confidence": attr_data["confidence"],
+                    "status": "verified" if attr_data["status"] == "verified" or attr_data["status"] == "auto_approved" else "flagged",
+                    "evidence": evidence_list
+                }
+                
+            conflicts = []
+            for c in res["conflicts"]:
+                vals = c.get("values", [])
+                s1 = vals[0]["source"] if len(vals) > 0 else "Source 1"
+                v1 = str(vals[0]["value"]) if len(vals) > 0 else ""
+                s2 = vals[1]["source"] if len(vals) > 1 else "Source 2"
+                v2 = str(vals[1]["value"]) if len(vals) > 1 else ""
+                
+                conflicts.append({
+                    "attribute_name": c["attribute"],
+                    "source_1": s1,
+                    "value_1": v1,
+                    "source_2": s2,
+                    "value_2": v2,
+                    "description": c.get("reasoning") or "Value mismatch detected.",
+                    "status": "pending" if c["status"] == "human_review" else "resolved"
+                })
+                
+            return {
+                "attributes": attributes,
+                "conflicts": conflicts,
+                "review_required": res["review_required"]
+            }
+            
+        # Development fallback (Stubs)
         product_id = extracted_data["product_id"]
         attributes = {}
         conflicts = []
         review_required = False
-        
-        # Base confidence calculation formula (simulated deterministically as requested in PDF page 5)
-        # confidence = source_quality + agreement_score + evidence_count
         
         for attr_name, attr_info in extracted_data["attributes"].items():
             value = attr_info["value"]
@@ -100,7 +197,6 @@ class Validator:
             page = attr_info.get("page")
             snippet = attr_info.get("snippet", "")
             
-            # Check for existing attributes of the same product to detect conflicts
             conflict_detected = False
             for existing in existing_attributes:
                 if existing.name == attr_name and existing.value != value:
@@ -145,7 +241,7 @@ class PipelineOrchestrator:
         # By default, use stubs for hackathon scaffolding. Set REAL_PIPELINE=true in environment or configure Person 1/2 classes to use actual logic.
         self.use_real_pipeline = os.getenv("REAL_PIPELINE", "false").lower() == "true"
         self.ai_extractor = AIExtractor()
-        self.validator = Validator()
+        self.validator = Validator(use_real_pipeline=self.use_real_pipeline)
 
     def ingest_and_parse_document(self, db: Session, file_path: str, filename: str, product_id: str = None) -> list:
         """
