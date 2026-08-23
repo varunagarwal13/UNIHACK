@@ -90,9 +90,18 @@ async def analyze_product(
     
     # If URL is provided, scrape it and create chunks
     if url:
-        chunks = orchestrator.ingest_url(db, url, product_id)
-        if not chunks:
-            raise HTTPException(status_code=400, detail="Failed to parse webpage or URL content.")
+        if not url.startswith("http"):
+            # Treat plain strings as direct SKU lookups 
+            chunks = [{
+                "source": "Direct SKU Input",
+                "page": None,
+                "type": "text",
+                "content": f"User provided SKU: {url}"
+            }]
+        else:
+            chunks = orchestrator.ingest_url(db, url, product_id)
+            if not chunks:
+                raise HTTPException(status_code=400, detail="Failed to parse webpage or URL content.")
         source_name = url
     else:
         # Check if there are already processed sources for this product
