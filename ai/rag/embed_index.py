@@ -39,7 +39,7 @@ class ChunkIndex:
         for attempt in range(max_retries):
             try:
                 return self._client.models.embed_content(
-                    model="gemini-embedding-001",
+                    model="text-embedding-004",
                     contents=batch,
                 )
             except genai_errors.ClientError as e:

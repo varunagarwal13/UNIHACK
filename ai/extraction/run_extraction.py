@@ -87,7 +87,7 @@ def extract_with_gemini(context: str, images: list, source_name: str) -> dict:
     contents = [prompt] + images
     
     response = client.models.generate_content(
-        model="gemini-3.6-flash",
+        model="gemini-1.5-flash",
         contents=contents,
     )
     text = response.text.strip()
