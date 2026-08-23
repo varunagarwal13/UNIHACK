@@ -12,6 +12,18 @@
     "routes": [
         {
             "src": "/(.*)",
+            "methods": [
+                "OPTIONS"
+            ],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
+            },
+            "status": 204
+        },
+        {
+            "src": "/(.*)",
             "dest": "main.py"
         }
     ],
