@@ -35,7 +35,7 @@ interface ViewerProps {
   onClose: () => void;
 }
 
-const getApiBaseUrl = () => {
+const getApiBase = () => {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
