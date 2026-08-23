@@ -1,0 +1,25 @@
+services:
+  # Backend FastAPI Service
+  - type: web
+    name: unihack-backend
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port 10000"
+    envVars:
+      - key: DATABASE_URL
+        # Replace with your actual connected postgres DB internal URL on Render
+        value: postgresql://username:password@internal-db:5432/dbname
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # Frontend Next.js Service
+  - type: web
+    name: unihack-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        # Point to the backend internal Render URL (replace unihack-backend if renamed)
+        value: http://unihack-backend:10000
