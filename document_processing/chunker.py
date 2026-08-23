@@ -110,10 +110,12 @@ def process_document_to_chunks(document_data: dict, source_name: str) -> list:
         text_chunks = chunk_text(text)
         for t_chunk in text_chunks:
             chunks.append({
-                "source": source_name,
-                "page": page_num,
-                "type": "text",
-                "content": t_chunk
+                "text": t_chunk,
+                "metadata": {
+                    "source": source_name,
+                    "page": page_num,
+                    "type": "text"
+                }
             })
             
     # 2. Process Tables
@@ -124,10 +126,12 @@ def process_document_to_chunks(document_data: dict, source_name: str) -> list:
             table_md = format_table_as_markdown(table)
             if table_md:
                 chunks.append({
-                    "source": source_name,
-                    "page": page_num,
-                    "type": "table",
-                    "content": table_md
+                    "text": table_md,
+                    "metadata": {
+                        "source": source_name,
+                        "page": page_num,
+                        "type": "table"
+                    }
                 })
                 
     # 3. Process Images
@@ -137,10 +141,12 @@ def process_document_to_chunks(document_data: dict, source_name: str) -> list:
         file_path = img.get("file_path")
         # For RAG context, we tell the LLM that an image exists at this path
         chunks.append({
-            "source": source_name,
-            "page": page_num,
-            "type": "image",
-            "content": f"[Embedded Product Image: {os.path.basename(file_path)} path={file_path}]"
+            "text": f"[Embedded Product Image: {os.path.basename(file_path)} path={file_path}]",
+            "metadata": {
+                "source": source_name,
+                "page": page_num,
+                "type": "image"
+            }
         })
         
     return chunks

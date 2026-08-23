@@ -4,14 +4,14 @@ from typing import List, Dict, Optional
 class EvidenceSchema(BaseModel):
     source: str
     page: Optional[int] = None
-    content: Optional[str] = None
+    snippet: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class AttributeValueSchema(BaseModel):
-    value: str
+    value: Optional[str] = None
     unit: Optional[str] = None
     confidence: float = 1.0
     status: str = "extracted"  # extracted, verified, flagged

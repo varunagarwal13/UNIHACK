@@ -215,7 +215,7 @@ def get_product(id: str, db: Session = Depends(get_db)):
     attributes_dict = {}
     for attr in product.attributes:
         evidence_list = [
-            EvidenceSchema(source=ev.source, page=ev.page, content=ev.content)
+            EvidenceSchema(source=ev.source, page=ev.page, snippet=ev.content)
             for ev in attr.evidence
         ]
         attributes_dict[attr.name] = AttributeValueSchema(

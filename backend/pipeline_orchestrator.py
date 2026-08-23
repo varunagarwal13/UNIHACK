@@ -38,7 +38,7 @@ class AIExtractor:
             context, images = build_context_with_images(top_chunks)
             
             # Grab source name from chunks if available
-            source_name = chunks[0].get("source", "document") if chunks and isinstance(chunks[0], dict) else "document"
+            source_name = chunks[0].get("metadata", {}).get("source", "document") if chunks and isinstance(chunks[0], dict) else "document"
             
             # 2. Extract explicitly using LLM
             return extract_with_gemini(context, images, source_name)
@@ -49,7 +49,7 @@ class AIExtractor:
     def _mock_extract(self, chunks: list) -> dict:
         is_abb = False
         for chunk in chunks:
-            content = chunk.get("content", "").upper()
+            content = chunk.get("text", chunk.get("content", "")).upper()
             if "ACS580" in content or "ABB" in content:
                 is_abb = True
                 break
@@ -298,10 +298,12 @@ class PipelineOrchestrator:
         # Formulate into chunk structure
         chunk_content = f"Source URL: {url}\nTitle: {web_data['title']}\nDescription: {web_data['metadata'].get('description', '')}\n\nContent:\n{web_data['text']}"
         chunks = [{
-            "source": url,
-            "page": None,
-            "type": "text",
-            "content": chunk_content
+            "text": chunk_content,
+            "metadata": {
+                "source": url,
+                "page": None,
+                "type": "text"
+            }
         }]
         
         # Save URL as Source record
