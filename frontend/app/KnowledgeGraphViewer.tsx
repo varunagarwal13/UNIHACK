@@ -36,6 +36,7 @@ interface ViewerProps {
 }
 
 const getApiBase = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
   if (hostname.includes("github.dev")) {
@@ -58,7 +59,7 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const activeDragNodeRef = useRef<Node | null>(null);
   const hoveredNodeRef = useRef<Node | null>(null);
-  
+
   // Local mutable copy of nodes/edges for simulation
   const nodesRef = useRef<Node[]>([]);
   const edgesRef = useRef<Edge[]>([]);
@@ -72,7 +73,7 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
         const res = await fetch(`${apiBase}/product/${productId}/graph`);
         if (!res.ok) throw new Error(`HTTP error ${res.status}`);
         const graphData = await res.json();
-        
+
         if (active) {
           // Initialize positions on a circle to avoid overlaps
           const width = 800;
@@ -141,7 +142,7 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
             const dy = (n1.y || 0) - (n2.y || 0);
             const distSq = dx * dx + dy * dy || 1;
             const dist = Math.sqrt(distSq);
-            
+
             const force = kRepel / distSq;
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
@@ -237,13 +238,13 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
         const isHovered = hoveredNodeRef.current?.id === n.id;
         const isSelected = selectedNode?.id === n.id;
         const hovered = hoveredNodeRef.current;
-        
+
         let opacity = 1.0;
         if (hovered) {
           // Check if n is connected to hovered node
           const isConnected = edges.some(
             (e) => (e.source === hovered.id && e.target === n.id) ||
-                   (e.target === hovered.id && e.source === n.id)
+              (e.target === hovered.id && e.source === n.id)
           );
           if (!isHovered && !isConnected) {
             opacity = 0.25;
@@ -265,10 +266,10 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
 
         // Node Glow / Stroke
         ctx.lineWidth = isHovered || isSelected ? 3.5 : 1.5;
-        ctx.strokeStyle = isSelected 
-          ? `rgba(255, 255, 255, ${opacity})` 
-          : isHovered 
-            ? `rgba(255, 255, 255, 0.8)` 
+        ctx.strokeStyle = isSelected
+          ? `rgba(255, 255, 255, ${opacity})`
+          : isHovered
+            ? `rgba(255, 255, 255, 0.8)`
             : `rgba(20, 20, 20, ${opacity})`;
         ctx.stroke();
 
@@ -385,7 +386,7 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
     const t = transformRef.current;
     const zoomFactor = 1.08;
     const nextK = e.deltaY < 0 ? t.k * zoomFactor : t.k / zoomFactor;
-    
+
     // Cap Zoom boundaries
     const k = Math.min(Math.max(nextK, 0.35), 4.0);
 
@@ -474,7 +475,7 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
                   onMouseLeave={handleMouseUp}
                   onWheel={handleWheel}
                 />
-                
+
                 {/* Visualizer HUD overlay controls */}
                 <div className="absolute bottom-4 left-4 flex gap-2">
                   <button
@@ -500,11 +501,10 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
                   </button>
                   <button
                     onClick={() => setIsPlaying(!isPlaying)}
-                    className={`flex px-2.5 h-8 items-center justify-center rounded border font-mono text-[10px] uppercase transition ${
-                      isPlaying 
-                        ? "border-teal/50 bg-teal/10 text-teal" 
+                    className={`flex px-2.5 h-8 items-center justify-center rounded border font-mono text-[10px] uppercase transition ${isPlaying
+                        ? "border-teal/50 bg-teal/10 text-teal"
                         : "border-line bg-panel-2 text-ivory hover:border-teal"
-                    }`}
+                      }`}
                   >
                     {isPlaying ? "Simulate: Active" : "Simulate: Paused"}
                   </button>
@@ -526,15 +526,14 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
                 <div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        selectedNode.group === "Product"
+                      className={`h-2.5 w-2.5 rounded-full ${selectedNode.group === "Product"
                           ? "bg-teal"
                           : selectedNode.group === "Source"
                             ? "bg-amber"
                             : selectedNode.group === "Attribute"
                               ? "bg-violet"
                               : "bg-blue"
-                      }`}
+                        }`}
                     />
                     <span className="font-mono text-[11px] font-semibold text-ivory uppercase tracking-wide">
                       {selectedNode.group} Node
@@ -608,7 +607,7 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
                 </div>
               )}
             </div>
-            
+
             {/* Legend footer */}
             <div className="border-t border-line p-4 space-y-2 font-mono text-[9px] uppercase tracking-wider text-mist">
               <div className="flex items-center gap-2">

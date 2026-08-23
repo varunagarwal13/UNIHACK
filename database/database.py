@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # PostgreSQL connection string default, fallback to local SQLite for development
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./product_twin.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////tmp/product_twin.db")
 
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):

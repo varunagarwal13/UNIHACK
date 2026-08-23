@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import KnowledgeGraphViewer from "./KnowledgeGraphViewer";
 
 const getApiBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
   if (hostname.includes("github.dev")) {
@@ -297,7 +298,7 @@ export default function Home() {
     setBuildState("processing");
     setReviewAction("none");
     setReviewNotes("");
-    
+
     // Wire up to Person 3's real API endpoint!
     try {
       let productId = `PT-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -307,35 +308,44 @@ export default function Home() {
         const formData = new FormData();
         formData.append("file", fileObj);
         formData.append("product_id", productId);
-        
+
         const uploadRes = await fetch(`${getApiBaseUrl()}/document/upload`, {
           method: "POST",
           body: formData
         });
-        
+
         if (!uploadRes.ok) throw new Error("Upload failed");
-        
+
+        setActiveStage(1);
         // 2. Analyze Product
         const analyzeRes = await fetch(`${getApiBaseUrl()}/product/analyze?product_id=${productId}&source_name=${encodeURIComponent(fileName!)}`, {
           method: "POST"
         });
         if (!analyzeRes.ok) throw new Error("Analyze failed");
       } else {
+        setActiveStage(1);
         // 2. Analyze URL/SKU
         const analyzeRes = await fetch(`${getApiBaseUrl()}/product/analyze?product_id=${productId}&source_name=${encodeURIComponent(identifyValue)}&url=${encodeURIComponent(identifyValue)}`, {
           method: "POST"
         });
-        if (!analyzeRes.ok) throw new Error("Analyze URL failed");
+        if (!analyzeRes.ok) throw new Error("Analyze URL failed. Ensure the link is valid and accessible.");
       }
 
+      setActiveStage(2);
       // 3. Get full Twin data
       const getRes = await fetch(`${getApiBaseUrl()}/product/${productId}`);
       if (getRes.ok) {
         const data = await getRes.json();
         setTwinData(data);
+        setActiveStage(3);
+        setTimeout(() => setBuildState("done"), 450);
+      } else {
+        throw new Error("Unable to fetch twin data.");
       }
-    } catch (e) {
-      console.error("Failed to reach backend API, falling back to local mock.", e);
+    } catch (e: any) {
+      console.error(e);
+      alert("Error: " + (e.message || "Failed to analyze. Please check your link or file."));
+      setBuildState("idle");
     }
   }
 
@@ -348,21 +358,7 @@ export default function Home() {
     setReviewNotes("");
   }
 
-  useEffect(() => {
-    if (buildState !== "processing") return;
-
-    if (activeStage >= STAGES.length) {
-      const t = setTimeout(() => setBuildState("done"), 450);
-      return () => clearTimeout(t);
-    }
-
-    const t = setTimeout(
-      () => setActiveStage((s) => s + 1),
-      900
-    );
-
-    return () => clearTimeout(t);
-  }, [buildState, activeStage]);
+  // Removed automatic timer to sync stages with actual backend fetch hook
 
   function stageStatus(index: number): StageStatus {
     if (index < activeStage) return "completed";
@@ -457,41 +453,41 @@ export default function Home() {
 
   function exportCSV() {
     const baseHeaders = [
-      "MFR URL", "Ref URL 1", "Ref URL 2", "Ref URL 3", "Ref URL 4", "Ref URL 5", 
-      "PART_NUMBER", "Dept", "Class", "Fine", "SKU - MY_PART_NUMBER", "Mfg_Part_Num", 
-      "Part_Desc", "E1_Brand", "Unilog_Brand", "DIB_Brand", "Part_Manuf", 
-      "MANUFACTURER_NAME", "BRAND_NAME", "TRADE_NAME", "MANUFACTURER_PART_NUMBER", 
-      "ALTERNATE_PART_NUMBER", "Classpath", "MOBILE_DESC", "INVOICE_DESC", "SHORT_DESC", 
+      "MFR URL", "Ref URL 1", "Ref URL 2", "Ref URL 3", "Ref URL 4", "Ref URL 5",
+      "PART_NUMBER", "Dept", "Class", "Fine", "SKU - MY_PART_NUMBER", "Mfg_Part_Num",
+      "Part_Desc", "E1_Brand", "Unilog_Brand", "DIB_Brand", "Part_Manuf",
+      "MANUFACTURER_NAME", "BRAND_NAME", "TRADE_NAME", "MANUFACTURER_PART_NUMBER",
+      "ALTERNATE_PART_NUMBER", "Classpath", "MOBILE_DESC", "INVOICE_DESC", "SHORT_DESC",
       "LONG_DESC1", "RETAIL_DESC", "MARKETING_DESCRIPTION"
     ];
     for (let i = 1; i <= 20; i++) baseHeaders.push(`ITEM_FEATURES_${i}`);
     baseHeaders.push("With", "Standard/Approvals", "Prop 65", "Application", "Includes", "Product Name");
-    
+
     for (let i = 1; i <= 50; i++) {
       baseHeaders.push(`ATTRIBUTE_LABEL ${i}`, `ATTRIBUTE_VALUE ${i}`, `ATTRIBUTE_UOM ${i}`);
     }
-    
+
     const trailingHeaders = [
-      "UPC", "EAN", "GTIN", "UNSPSC", "Warranty", "List Price", "Selling Qty", "Selling UOM", 
-      "Standard Packaging Information", "LENGTH", "LENGTH_UOM", "HEIGHT", "HEIGHT_UOM", 
-      "WIDTH", "WIDTH_UOM", "WEIGHT", "WEIGHT_UOM", "VOLUME", "VOLUME_UOM", "Product Image", 
-      "Alternate Image 1", "Alternate Image 2", "Alternate Image 3", "Alternate Image 4", 
-      "SDS", "SDS_1", "Warranty Information", "Catalog", "Specification Sheet", 
-      "Instruction/Installation Manual", "Service Manual", "Owners/User Manual", "Line Drawing", 
-      "MTR", "RoHS", "Full Engineering Drawing", "Energy Star Guide", "Technical Bulletin", 
-      "Submittal", "Compatibility Chart", "Size Chart", "Product Label/Insert", "Video Link", 
+      "UPC", "EAN", "GTIN", "UNSPSC", "Warranty", "List Price", "Selling Qty", "Selling UOM",
+      "Standard Packaging Information", "LENGTH", "LENGTH_UOM", "HEIGHT", "HEIGHT_UOM",
+      "WIDTH", "WIDTH_UOM", "WEIGHT", "WEIGHT_UOM", "VOLUME", "VOLUME_UOM", "Product Image",
+      "Alternate Image 1", "Alternate Image 2", "Alternate Image 3", "Alternate Image 4",
+      "SDS", "SDS_1", "Warranty Information", "Catalog", "Specification Sheet",
+      "Instruction/Installation Manual", "Service Manual", "Owners/User Manual", "Line Drawing",
+      "MTR", "RoHS", "Full Engineering Drawing", "Energy Star Guide", "Technical Bulletin",
+      "Submittal", "Compatibility Chart", "Size Chart", "Product Label/Insert", "Video Link",
       "Video Link 1", "Country Of Origin", "Discontinued", "Actual Image (Yes/No)"
     ];
-    
+
     const allHeaders = [...baseHeaders, ...trailingHeaders];
     const rowData: Record<string, any> = {};
-    
+
     rowData["MANUFACTURER_NAME"] = twin.manufacturer || "";
     rowData["Mfg_Part_Num"] = twin.product_id || "";
     rowData["MANUFACTURER_PART_NUMBER"] = twin.product_id || "";
     rowData["Product Name"] = twin.category || "";
     rowData["MFR URL"] = source || "";
-    
+
     let attrIndex = 1;
     if (twin.attributes) {
       for (const [key, attrObj] of Object.entries(twin.attributes)) {
@@ -502,7 +498,7 @@ export default function Home() {
         attrIndex++;
       }
     }
-    
+
     const csvContent = [
       allHeaders.map(h => `"${h}"`).join(","),
       allHeaders.map(h => {
@@ -510,7 +506,7 @@ export default function Home() {
         return `"${val.replace(/"/g, '""')}"`;
       }).join(",")
     ].join("\\n");
-    
+
     downloadFile(csvContent, `producttwin-${twin.product_id || "export"}.csv`, "text/csv;charset=utf-8");
   }
 
@@ -646,11 +642,10 @@ export default function Home() {
                   {EVIDENCE.sources.map((s) => (
                     <div
                       key={s.name}
-                      className={`rounded-md border p-4 ${
-                        s.agrees
+                      className={`rounded-md border p-4 ${s.agrees
                           ? "border-line bg-panel-2"
                           : "border-amber/50 bg-amber/5"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <p className="font-mono text-[10px] tracking-wide text-mist uppercase">
@@ -669,11 +664,10 @@ export default function Home() {
                       </p>
 
                       <p
-                        className={`mt-3 font-display text-2xl font-semibold ${
-                          s.agrees
+                        className={`mt-3 font-display text-2xl font-semibold ${s.agrees
                             ? "text-ivory"
                             : "text-amber"
-                        }`}
+                          }`}
                       >
                         {s.value}
                       </p>
@@ -722,13 +716,12 @@ export default function Home() {
                       </span>
 
                       <span
-                        className={`rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wide uppercase ${
-                          reviewAction === "approved"
+                        className={`rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wide uppercase ${reviewAction === "approved"
                             ? "border-teal/50 bg-teal/10 text-teal"
                             : reviewAction === "review"
                               ? "border-amber/50 bg-amber/10 text-amber"
                               : "border-line bg-panel-2 text-mist"
-                        }`}
+                          }`}
                       >
                         {reviewAction === "approved"
                           ? "Approved"
@@ -781,13 +774,12 @@ export default function Home() {
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ attribute_name: EVIDENCE.attribute, approved_value: EVIDENCE.resolvedValue, notes: reviewNotes })
                           });
-                        } catch(e) {}
-                       }}
-                      className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
-                        reviewAction === "approved"
+                        } catch (e) { }
+                      }}
+                      className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${reviewAction === "approved"
                           ? "border-teal bg-teal text-ink"
                           : "border-line bg-panel-2 text-ivory hover:border-teal hover:text-teal"
-                      }`}
+                        }`}
                     >
                       {reviewAction === "approved"
                         ? "Approved ✓"
@@ -804,13 +796,12 @@ export default function Home() {
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ attribute_name: EVIDENCE.attribute, approved_value: "REVIEW", notes: reviewNotes })
                           });
-                        } catch(e) {}
+                        } catch (e) { }
                       }}
-                      className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
-                        reviewAction === "review"
+                      className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${reviewAction === "review"
                           ? "border-amber bg-amber text-ink"
                           : "border-line bg-panel-2 text-ivory hover:border-amber hover:text-amber"
-                      }`}
+                        }`}
                     >
                       {reviewAction === "review"
                         ? "Sent to Review ✓"
@@ -1072,22 +1063,20 @@ export default function Home() {
                       return (
                         <li
                           key={label}
-                          className={`flex items-center gap-3 rounded-md border px-3 py-2.5 transition ${
-                            status === "active"
+                          className={`flex items-center gap-3 rounded-md border px-3 py-2.5 transition ${status === "active"
                               ? "border-teal/50 bg-teal/5"
                               : status === "completed"
                                 ? "border-line bg-panel-2"
                                 : "border-line/60 bg-panel-2/40"
-                          }`}
+                            }`}
                         >
                           <span
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-mono text-[10px] ${
-                              status === "completed"
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-mono text-[10px] ${status === "completed"
                                 ? "border-teal bg-teal text-ink"
                                 : status === "active"
                                   ? "border-teal text-teal"
                                   : "border-line text-mist"
-                            }`}
+                              }`}
                           >
                             {status === "completed" ? (
                               <CheckIcon className="h-3.5 w-3.5" />
@@ -1099,11 +1088,10 @@ export default function Home() {
                           </span>
 
                           <span
-                            className={`font-mono text-xs tracking-wide uppercase ${
-                              status === "pending"
+                            className={`font-mono text-xs tracking-wide uppercase ${status === "pending"
                                 ? "text-mist"
                                 : "text-ivory"
-                            }`}
+                              }`}
                           >
                             {String(i + 1).padStart(2, "0")}{" "}
                             {label}
@@ -1127,11 +1115,10 @@ export default function Home() {
                           key={m}
                           type="button"
                           onClick={() => setMode(m)}
-                          className={`rounded px-3 py-1.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
-                            mode === m
+                          className={`rounded px-3 py-1.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${mode === m
                               ? "bg-teal text-ink"
                               : "text-mist hover:text-ivory"
-                          }`}
+                            }`}
                         >
                           {m}
                         </button>
@@ -1185,11 +1172,10 @@ export default function Home() {
                           e.dataTransfer.files?.[0] ?? null
                         );
                       }}
-                      className={`mt-3 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed px-4 py-6 text-center transition ${
-                        isDragging
+                      className={`mt-3 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed px-4 py-6 text-center transition ${isDragging
                           ? "border-teal bg-teal/5"
                           : "border-line bg-panel-2"
-                      }`}
+                        }`}
                     >
                       {fileName ? (
                         <div className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-panel px-3 py-2">
@@ -1251,11 +1237,10 @@ export default function Home() {
                     type="button"
                     disabled={!canBuild}
                     onClick={handleBuild}
-                    className={`mt-7 flex w-full items-center justify-center gap-2 rounded-md py-3.5 font-display text-sm font-semibold tracking-[0.08em] uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
-                      canBuild
+                    className={`mt-7 flex w-full items-center justify-center gap-2 rounded-md py-3.5 font-display text-sm font-semibold tracking-[0.08em] uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${canBuild
                         ? "bg-teal text-ink shadow-[0_0_24px_rgba(79,224,196,0.35)] hover:shadow-[0_0_32px_rgba(79,224,196,0.5)]"
                         : "cursor-not-allowed bg-panel-2 text-mist"
-                    }`}
+                      }`}
                   >
                     Build ProductTwin
                   </button>
@@ -1269,11 +1254,10 @@ export default function Home() {
               <div className="mt-4 flex items-center justify-between font-mono text-[10px] tracking-wide text-mist uppercase">
                 <span className="flex items-center gap-1.5">
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      buildState === "processing"
+                    className={`h-1.5 w-1.5 rounded-full ${buildState === "processing"
                         ? "bg-amber"
                         : "bg-teal shadow-[0_0_6px_rgba(79,224,196,0.8)]"
-                    }`}
+                      }`}
                   />
 
                   {statusText}
@@ -1286,9 +1270,9 @@ export default function Home() {
       </main>
 
       {showGraph && (
-        <KnowledgeGraphViewer 
-          productId={twin.product_id} 
-          onClose={() => setShowGraph(false)} 
+        <KnowledgeGraphViewer
+          productId={twin.product_id}
+          onClose={() => setShowGraph(false)}
         />
       )}
     </div>
