@@ -1,8 +1,11 @@
 import os
 import shutil
 import csv
+import base64
+import tempfile
 from io import StringIO
 from typing import Optional
+from pydantic import BaseModel
 from fastapi import FastAPI, Depends, File, UploadFile, HTTPException, Query, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -99,6 +102,41 @@ async def upload_and_analyze(
             raise HTTPException(status_code=400, detail="Failed to extract any text/data from the file.")
             
         product = orchestrator.run_analysis(db, product_id, chunks, file.filename)
+        return {
+            "message": "Upload and analysis completed successfully", 
+            "product_id": product.id, 
+            "review_required": product.review_required
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class Base64UploadRequest(BaseModel):
+    product_id: str
+    filename: str
+    file_base64: str
+
+@app.post("/document/upload_and_analyze_base64")
+async def upload_and_analyze_base64(req: Base64UploadRequest, db: Session = Depends(get_db)):
+    """
+    Alternative upload route that avoids python-multipart deadlocks on Vercel by relying on strict JSON Base64.
+    """
+    if not req.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    file_location = os.path.join(UPLOAD_DIR, req.filename)
+    try:
+        pdf_bytes = base64.b64decode(req.file_base64)
+        with open(file_location, "wb+") as f:
+            f.write(pdf_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to decode base64 file: {str(e)}")
+        
+    try:
+        chunks = orchestrator.ingest_and_parse_document(db, file_location, req.filename, req.product_id)
+        if not chunks:
+            raise HTTPException(status_code=400, detail="Failed to extract any text/data from the file.")
+            
+        product = orchestrator.run_analysis(db, req.product_id, chunks, req.filename)
         return {
             "message": "Upload and analysis completed successfully", 
             "product_id": product.id, 
