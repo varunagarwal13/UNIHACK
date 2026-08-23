@@ -15,9 +15,13 @@ from pdf_loader import load_pdf_chunks
 from embed_index import ChunkIndex
 from product_schema import ProductRecord
 
-EXTRACTION_PROMPT = """You are a product-intelligence extraction engine. You will be given
-excerpts from a manufacturer datasheet/catalog. Extract the product's key technical
-attributes as STRICT JSON matching this exact shape (no markdown, no preamble, no code fences):
+EXTRACTION_PROMPT = """You are an advanced multi-modal product-intelligence extraction engine. 
+You will be given excerpts from a manufacturer datasheet/catalog, as well as embedded images and technical diagrams. 
+
+CRITICAL INSTRUCTIONS FOR IMAGES:
+If visual schematics, dimension diagrams, CAD drawings, or tables are provided in your context payload, you must rigorously analyze them visually. Extract explicit technical parameters (such as dimensions, visual wiring pinouts, form factors, etc.) natively from the illustrations that might not exist in the raw OCR text.
+
+Extract the product's key technical attributes as STRICT JSON matching this exact shape (no markdown, no preamble, no code fences):
 
 {{
   "product_id": "<a representative model/type code from the text>",
