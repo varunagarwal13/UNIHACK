@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import KnowledgeGraphViewer from "./KnowledgeGraphViewer";
 
 type IdentifyMode = "sku" | "url";
 type BuildState = "idle" | "processing" | "done" | "evidence";
@@ -249,6 +250,7 @@ export default function Home() {
   const [mode, setMode] = useState<IdentifyMode>("sku");
   const [identifyValue, setIdentifyValue] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileObj, setFileObj] = useState<File | null>(null);
   const [buildState, setBuildState] = useState<BuildState>("idle");
   const [activeStage, setActiveStage] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -263,11 +265,16 @@ export default function Home() {
     buildState === "idle";
 
   const [twinData, setTwinData] = useState<any>(null);
+  const [showGraph, setShowGraph] = useState(false);
   const twin = useMemo(() => twinData || buildMockTwin(source), [source, twinData]);
 
   function handleFile(file: File | null) {
     if (file && file.type === "application/pdf") {
       setFileName(file.name);
+      setFileObj(file);
+    } else {
+      setFileName(null);
+      setFileObj(null);
     }
   }
 
@@ -283,13 +290,38 @@ export default function Home() {
     
     // Wire up to Person 3's real API endpoint!
     try {
-      const res = await fetch("https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/product/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: targetSource })
-      });
-      if (res.ok) {
-        const data = await res.json();
+      let productId = `PT-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      if (fileObj) {
+        // 1. Upload Document
+        const formData = new FormData();
+        formData.append("file", fileObj);
+        formData.append("product_id", productId);
+        
+        const uploadRes = await fetch("https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/document/upload", {
+          method: "POST",
+          body: formData
+        });
+        
+        if (!uploadRes.ok) throw new Error("Upload failed");
+        
+        // 2. Analyze Product
+        const analyzeRes = await fetch(`https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/product/analyze?product_id=${productId}&source_name=${encodeURIComponent(fileName!)}`, {
+          method: "POST"
+        });
+        if (!analyzeRes.ok) throw new Error("Analyze failed");
+      } else {
+        // 2. Analyze URL/SKU
+        const analyzeRes = await fetch(`https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/product/analyze?product_id=${productId}&source_name=${encodeURIComponent(identifyValue)}&url=${encodeURIComponent(identifyValue)}`, {
+          method: "POST"
+        });
+        if (!analyzeRes.ok) throw new Error("Analyze URL failed");
+      }
+
+      // 3. Get full Twin data
+      const getRes = await fetch(`https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/product/${productId}`);
+      if (getRes.ok) {
+        const data = await getRes.json();
         setTwinData(data);
       }
     } catch (e) {
@@ -721,7 +753,7 @@ export default function Home() {
                           await fetch(`https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/review/${twin.product_id}`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ action: "approved", notes: reviewNotes })
+                            body: JSON.stringify({ attribute_name: EVIDENCE.attribute, approved_value: EVIDENCE.resolvedValue, notes: reviewNotes })
                           });
                         } catch(e) {}
                       }}
@@ -744,7 +776,7 @@ export default function Home() {
                           await fetch(`https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/review/${twin.product_id}`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ action: "review", notes: reviewNotes })
+                            body: JSON.stringify({ attribute_name: EVIDENCE.attribute, approved_value: "REVIEW", notes: reviewNotes })
                           });
                         } catch(e) {}
                       }}
@@ -859,7 +891,7 @@ export default function Home() {
                   </button>
 
                   <button
-                    onClick={() => alert(`Knowledge Graph Viewer goes here! Wiring to https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/product/${twin.product_id}/graph in progress.`)}
+                    onClick={() => setShowGraph(true)}
                     className="flex items-center gap-2 rounded-md border border-line bg-panel-2 px-3 py-1.5 font-mono text-xs tracking-wide text-ivory uppercase transition hover:border-teal hover:text-teal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
@@ -1226,6 +1258,13 @@ export default function Home() {
             )}
         </div>
       </main>
+
+      {showGraph && (
+        <KnowledgeGraphViewer 
+          productId={twin.product_id} 
+          onClose={() => setShowGraph(false)} 
+        />
+      )}
     </div>
   );
 }
