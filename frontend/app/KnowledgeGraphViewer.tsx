@@ -35,15 +35,14 @@ interface ViewerProps {
   onClose: () => void;
 }
 
-const getApiBase = () => {
+const getApiBaseUrl = () => {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
-  if (hostname.includes("github.dev")) {
-    const codespaceHost = hostname.replace("-3000", "-8000");
-    return `https://${codespaceHost}`;
+  if (hostname.includes("github.dev") || hostname.includes("localhost")) {
+    return "http://localhost:8000";
   }
-  return "http://localhost:8000";
+  return "https://unihack-backend.vercel.app";
 };
 
 export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps) {
@@ -502,8 +501,8 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
                   <button
                     onClick={() => setIsPlaying(!isPlaying)}
                     className={`flex px-2.5 h-8 items-center justify-center rounded border font-mono text-[10px] uppercase transition ${isPlaying
-                        ? "border-teal/50 bg-teal/10 text-teal"
-                        : "border-line bg-panel-2 text-ivory hover:border-teal"
+                      ? "border-teal/50 bg-teal/10 text-teal"
+                      : "border-line bg-panel-2 text-ivory hover:border-teal"
                       }`}
                   >
                     {isPlaying ? "Simulate: Active" : "Simulate: Paused"}
@@ -527,12 +526,12 @@ export default function KnowledgeGraphViewer({ productId, onClose }: ViewerProps
                   <div className="flex items-center gap-2">
                     <span
                       className={`h-2.5 w-2.5 rounded-full ${selectedNode.group === "Product"
-                          ? "bg-teal"
-                          : selectedNode.group === "Source"
-                            ? "bg-amber"
-                            : selectedNode.group === "Attribute"
-                              ? "bg-violet"
-                              : "bg-blue"
+                        ? "bg-teal"
+                        : selectedNode.group === "Source"
+                          ? "bg-amber"
+                          : selectedNode.group === "Attribute"
+                            ? "bg-violet"
+                            : "bg-blue"
                         }`}
                     />
                     <span className="font-mono text-[11px] font-semibold text-ivory uppercase tracking-wide">

@@ -7,11 +7,10 @@ const getApiBaseUrl = () => {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window === "undefined") return "http://localhost:8000";
   const hostname = window.location.hostname;
-  if (hostname.includes("github.dev")) {
-    const codespaceHost = hostname.replace("-3000", "-8000");
-    return `https://${codespaceHost}`;
+  if (hostname.includes("github.dev") || hostname.includes("localhost")) {
+    return "http://localhost:8000";
   }
-  return "http://localhost:8000";
+  return "https://unihack-backend.vercel.app"; // Hardcoded Vercel API URL fallback
 };
 
 type IdentifyMode = "sku" | "url";
@@ -643,8 +642,8 @@ export default function Home() {
                     <div
                       key={s.name}
                       className={`rounded-md border p-4 ${s.agrees
-                          ? "border-line bg-panel-2"
-                          : "border-amber/50 bg-amber/5"
+                        ? "border-line bg-panel-2"
+                        : "border-amber/50 bg-amber/5"
                         }`}
                     >
                       <div className="flex items-center justify-between">
@@ -665,8 +664,8 @@ export default function Home() {
 
                       <p
                         className={`mt-3 font-display text-2xl font-semibold ${s.agrees
-                            ? "text-ivory"
-                            : "text-amber"
+                          ? "text-ivory"
+                          : "text-amber"
                           }`}
                       >
                         {s.value}
@@ -717,10 +716,10 @@ export default function Home() {
 
                       <span
                         className={`rounded-full border px-2 py-0.5 font-mono text-[9px] tracking-wide uppercase ${reviewAction === "approved"
-                            ? "border-teal/50 bg-teal/10 text-teal"
-                            : reviewAction === "review"
-                              ? "border-amber/50 bg-amber/10 text-amber"
-                              : "border-line bg-panel-2 text-mist"
+                          ? "border-teal/50 bg-teal/10 text-teal"
+                          : reviewAction === "review"
+                            ? "border-amber/50 bg-amber/10 text-amber"
+                            : "border-line bg-panel-2 text-mist"
                           }`}
                       >
                         {reviewAction === "approved"
@@ -777,8 +776,8 @@ export default function Home() {
                         } catch (e) { }
                       }}
                       className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${reviewAction === "approved"
-                          ? "border-teal bg-teal text-ink"
-                          : "border-line bg-panel-2 text-ivory hover:border-teal hover:text-teal"
+                        ? "border-teal bg-teal text-ink"
+                        : "border-line bg-panel-2 text-ivory hover:border-teal hover:text-teal"
                         }`}
                     >
                       {reviewAction === "approved"
@@ -799,8 +798,8 @@ export default function Home() {
                         } catch (e) { }
                       }}
                       className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${reviewAction === "review"
-                          ? "border-amber bg-amber text-ink"
-                          : "border-line bg-panel-2 text-ivory hover:border-amber hover:text-amber"
+                        ? "border-amber bg-amber text-ink"
+                        : "border-line bg-panel-2 text-ivory hover:border-amber hover:text-amber"
                         }`}
                     >
                       {reviewAction === "review"
@@ -1064,18 +1063,18 @@ export default function Home() {
                         <li
                           key={label}
                           className={`flex items-center gap-3 rounded-md border px-3 py-2.5 transition ${status === "active"
-                              ? "border-teal/50 bg-teal/5"
-                              : status === "completed"
-                                ? "border-line bg-panel-2"
-                                : "border-line/60 bg-panel-2/40"
+                            ? "border-teal/50 bg-teal/5"
+                            : status === "completed"
+                              ? "border-line bg-panel-2"
+                              : "border-line/60 bg-panel-2/40"
                             }`}
                         >
                           <span
                             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-mono text-[10px] ${status === "completed"
-                                ? "border-teal bg-teal text-ink"
-                                : status === "active"
-                                  ? "border-teal text-teal"
-                                  : "border-line text-mist"
+                              ? "border-teal bg-teal text-ink"
+                              : status === "active"
+                                ? "border-teal text-teal"
+                                : "border-line text-mist"
                               }`}
                           >
                             {status === "completed" ? (
@@ -1089,8 +1088,8 @@ export default function Home() {
 
                           <span
                             className={`font-mono text-xs tracking-wide uppercase ${status === "pending"
-                                ? "text-mist"
-                                : "text-ivory"
+                              ? "text-mist"
+                              : "text-ivory"
                               }`}
                           >
                             {String(i + 1).padStart(2, "0")}{" "}
@@ -1116,8 +1115,8 @@ export default function Home() {
                           type="button"
                           onClick={() => setMode(m)}
                           className={`rounded px-3 py-1.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${mode === m
-                              ? "bg-teal text-ink"
-                              : "text-mist hover:text-ivory"
+                            ? "bg-teal text-ink"
+                            : "text-mist hover:text-ivory"
                             }`}
                         >
                           {m}
@@ -1173,8 +1172,8 @@ export default function Home() {
                         );
                       }}
                       className={`mt-3 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed px-4 py-6 text-center transition ${isDragging
-                          ? "border-teal bg-teal/5"
-                          : "border-line bg-panel-2"
+                        ? "border-teal bg-teal/5"
+                        : "border-line bg-panel-2"
                         }`}
                     >
                       {fileName ? (
@@ -1238,8 +1237,8 @@ export default function Home() {
                     disabled={!canBuild}
                     onClick={handleBuild}
                     className={`mt-7 flex w-full items-center justify-center gap-2 rounded-md py-3.5 font-display text-sm font-semibold tracking-[0.08em] uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${canBuild
-                        ? "bg-teal text-ink shadow-[0_0_24px_rgba(79,224,196,0.35)] hover:shadow-[0_0_32px_rgba(79,224,196,0.5)]"
-                        : "cursor-not-allowed bg-panel-2 text-mist"
+                      ? "bg-teal text-ink shadow-[0_0_24px_rgba(79,224,196,0.35)] hover:shadow-[0_0_32px_rgba(79,224,196,0.5)]"
+                      : "cursor-not-allowed bg-panel-2 text-mist"
                       }`}
                   >
                     Build ProductTwin
@@ -1255,8 +1254,8 @@ export default function Home() {
                 <span className="flex items-center gap-1.5">
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${buildState === "processing"
-                        ? "bg-amber"
-                        : "bg-teal shadow-[0_0_6px_rgba(79,224,196,0.8)]"
+                      ? "bg-amber"
+                      : "bg-teal shadow-[0_0_6px_rgba(79,224,196,0.8)]"
                       }`}
                   />
 
