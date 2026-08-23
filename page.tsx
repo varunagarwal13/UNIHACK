@@ -262,7 +262,8 @@ export default function Home() {
     (identifyValue.trim().length > 0 || fileName !== null) &&
     buildState === "idle";
 
-  const twin = useMemo(() => buildMockTwin(source), [source]);
+  const [twinData, setTwinData] = useState<any>(null);
+  const twin = useMemo(() => twinData || buildMockTwin(source), [source, twinData]);
 
   function handleFile(file: File | null) {
     if (file && file.type === "application/pdf") {
@@ -270,14 +271,30 @@ export default function Home() {
     }
   }
 
-  function handleBuild() {
+  async function handleBuild() {
     if (!canBuild) return;
 
-    setSource(fileName ?? identifyValue);
+    const targetSource = fileName ?? identifyValue;
+    setSource(targetSource);
     setActiveStage(0);
     setBuildState("processing");
     setReviewAction("none");
     setReviewNotes("");
+    
+    // Wire up to Person 3's real API endpoint!
+    try {
+      const res = await fetch("https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/product/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: targetSource })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTwinData(data);
+      }
+    } catch (e) {
+      console.error("Failed to reach backend API, falling back to local mock.", e);
+    }
   }
 
   function reset() {
@@ -361,15 +378,15 @@ export default function Home() {
 
   function exportJSON() {
     const exportData = {
-      product: twin.name,
-      sku: twin.sku,
+      product: twin.manufacturer,
+      sku: twin.product_id,
       category: twin.category,
       source: source || "PRODUCTTWIN-DEMO",
       confidence: twin.confidence,
-      specifications: twin.specs,
-      materials: twin.materials,
-      compliance: twin.compliance,
-      sustainability: twin.sustainability,
+      attributes: twin.attributes,
+      conflicts: twin.conflicts,
+      sources: twin.sources,
+      review_required: twin.review_required,
       evidenceReview: {
         product: EVIDENCE.product,
         attribute: EVIDENCE.attribute,
@@ -399,8 +416,8 @@ export default function Home() {
   function exportCSV() {
     const rows = [
       ["Field", "Value"],
-      ["Product", twin.name],
-      ["SKU", twin.sku],
+      ["Product", twin.manufacturer],
+      ["SKU", twin.product_id],
       ["Category", twin.category],
       ["Source", source || "PRODUCTTWIN-DEMO"],
       ["Confidence", `${twin.confidence}%`],
@@ -419,8 +436,6 @@ export default function Home() {
         "Reviewer Notes",
         reviewNotes || "No reviewer notes added.",
       ],
-      ["Sustainability Score", `${twin.sustainability.score}/100`],
-      ["Compliance", twin.compliance.join(", ")],
     ];
 
     const csv = rows
@@ -700,9 +715,16 @@ export default function Home() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setReviewAction("approved")
-                      }
+                      onClick={async () => {
+                        setReviewAction("approved");
+                        try {
+                          await fetch(`https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/review/${twin.product_id}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "approved", notes: reviewNotes })
+                          });
+                        } catch(e) {}
+                      }}
                       className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
                         reviewAction === "approved"
                           ? "border-teal bg-teal text-ink"
@@ -716,9 +738,16 @@ export default function Home() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setReviewAction("review")
-                      }
+                      onClick={async () => {
+                        setReviewAction("review");
+                        try {
+                          await fetch(`https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/review/${twin.product_id}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "review", notes: reviewNotes })
+                          });
+                        } catch(e) {}
+                      }}
                       className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
                         reviewAction === "review"
                           ? "border-amber bg-amber text-ink"
@@ -830,7 +859,7 @@ export default function Home() {
                   </button>
 
                   <button
-                    onClick={() => alert("Knowledge Graph Viewer goes here! Wiring to /product/id/graph in progress.")}
+                    onClick={() => alert(`Knowledge Graph Viewer goes here! Wiring to https://stunning-waffle-jjxvqwxrv666hjpqg-8000.app.github.dev/product/${twin.product_id}/graph in progress.`)}
                     className="flex items-center gap-2 rounded-md border border-line bg-panel-2 px-3 py-1.5 font-mono text-xs tracking-wide text-ivory uppercase transition hover:border-teal hover:text-teal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
