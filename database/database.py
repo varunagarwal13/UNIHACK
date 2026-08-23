@@ -4,7 +4,11 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 import tempfile
 db_path = os.path.join(tempfile.gettempdir(), "product_twin.db").replace("\\", "/")
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{db_path}")
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or f"sqlite:///{db_path}"
+
+# Fix Heroku/Render/Vercel standard prefix for SQLAlchemy compatibility
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):
