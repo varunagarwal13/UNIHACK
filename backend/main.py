@@ -94,17 +94,18 @@ async def upload_and_analyze(
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
         
     try:
-        review_required = orchestrator.run_pipeline(
-            product_id=product_id,
-            source=file.filename,
-            source_type="pdf",
-            db=db,
-            url=None
-        )
-        return {"message": "Upload and analysis completed successfully", "product_id": product_id, "review_required": review_required}
+        chunks = orchestrator.ingest_and_parse_document(db, file_location, file.filename, product_id)
+        if not chunks:
+            raise HTTPException(status_code=400, detail="Failed to extract any text/data from the file.")
+            
+        product = orchestrator.run_analysis(db, product_id, chunks, file.filename)
+        return {
+            "message": "Upload and analysis completed successfully", 
+            "product_id": product.id, 
+            "review_required": product.review_required
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/product/analyze", summary="Run pipeline analysis on chunks and save twin attributes")
 async def analyze_product(
