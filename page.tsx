@@ -446,46 +446,62 @@ export default function Home() {
   }
 
   function exportCSV() {
-    const rows = [
-      ["Field", "Value"],
-      ["Product", twin.manufacturer],
-      ["SKU", twin.product_id],
-      ["Category", twin.category],
-      ["Source", source || "PRODUCTTWIN-DEMO"],
-      ["Confidence", `${twin.confidence}%`],
-      ["IP Rating", EVIDENCE.resolvedValue],
-      ["Evidence Confidence", `${EVIDENCE.confidence}%`],
-      ["Conflict Detected", EVIDENCE.conflict ? "Yes" : "No"],
-      [
-        "Reviewer Decision",
-        reviewAction === "approved"
-          ? "Approved"
-          : reviewAction === "review"
-            ? "Sent to Review"
-            : "Pending",
-      ],
-      [
-        "Reviewer Notes",
-        reviewNotes || "No reviewer notes added.",
-      ],
+    const baseHeaders = [
+      "MFR URL", "Ref URL 1", "Ref URL 2", "Ref URL 3", "Ref URL 4", "Ref URL 5", 
+      "PART_NUMBER", "Dept", "Class", "Fine", "SKU - MY_PART_NUMBER", "Mfg_Part_Num", 
+      "Part_Desc", "E1_Brand", "Unilog_Brand", "DIB_Brand", "Part_Manuf", 
+      "MANUFACTURER_NAME", "BRAND_NAME", "TRADE_NAME", "MANUFACTURER_PART_NUMBER", 
+      "ALTERNATE_PART_NUMBER", "Classpath", "MOBILE_DESC", "INVOICE_DESC", "SHORT_DESC", 
+      "LONG_DESC1", "RETAIL_DESC", "MARKETING_DESCRIPTION"
     ];
-
-    const csv = rows
-      .map((row) =>
-        row
-          .map((value) => {
-            const escaped = String(value).replace(/"/g, '""');
-            return `"${escaped}"`;
-          })
-          .join(",")
-      )
-      .join("\n");
-
-    downloadFile(
-      csv,
-      `producttwin-${twin.sku}.csv`,
-      "text/csv;charset=utf-8"
-    );
+    for (let i = 1; i <= 20; i++) baseHeaders.push(`ITEM_FEATURES_${i}`);
+    baseHeaders.push("With", "Standard/Approvals", "Prop 65", "Application", "Includes", "Product Name");
+    
+    for (let i = 1; i <= 50; i++) {
+      baseHeaders.push(`ATTRIBUTE_LABEL ${i}`, `ATTRIBUTE_VALUE ${i}`, `ATTRIBUTE_UOM ${i}`);
+    }
+    
+    const trailingHeaders = [
+      "UPC", "EAN", "GTIN", "UNSPSC", "Warranty", "List Price", "Selling Qty", "Selling UOM", 
+      "Standard Packaging Information", "LENGTH", "LENGTH_UOM", "HEIGHT", "HEIGHT_UOM", 
+      "WIDTH", "WIDTH_UOM", "WEIGHT", "WEIGHT_UOM", "VOLUME", "VOLUME_UOM", "Product Image", 
+      "Alternate Image 1", "Alternate Image 2", "Alternate Image 3", "Alternate Image 4", 
+      "SDS", "SDS_1", "Warranty Information", "Catalog", "Specification Sheet", 
+      "Instruction/Installation Manual", "Service Manual", "Owners/User Manual", "Line Drawing", 
+      "MTR", "RoHS", "Full Engineering Drawing", "Energy Star Guide", "Technical Bulletin", 
+      "Submittal", "Compatibility Chart", "Size Chart", "Product Label/Insert", "Video Link", 
+      "Video Link 1", "Country Of Origin", "Discontinued", "Actual Image (Yes/No)"
+    ];
+    
+    const allHeaders = [...baseHeaders, ...trailingHeaders];
+    const rowData: Record<string, any> = {};
+    
+    rowData["MANUFACTURER_NAME"] = twin.manufacturer || "";
+    rowData["Mfg_Part_Num"] = twin.product_id || "";
+    rowData["MANUFACTURER_PART_NUMBER"] = twin.product_id || "";
+    rowData["Product Name"] = twin.category || "";
+    rowData["MFR URL"] = source || "";
+    
+    let attrIndex = 1;
+    if (twin.attributes) {
+      for (const [key, attrObj] of Object.entries(twin.attributes)) {
+        if (attrIndex > 50) break;
+        rowData[`ATTRIBUTE_LABEL ${attrIndex}`] = key.replace(/_/g, " ");
+        rowData[`ATTRIBUTE_VALUE ${attrIndex}`] = (attrObj as any).value || "";
+        rowData[`ATTRIBUTE_UOM ${attrIndex}`] = (attrObj as any).unit || "";
+        attrIndex++;
+      }
+    }
+    
+    const csvContent = [
+      allHeaders.map(h => `"${h}"`).join(","),
+      allHeaders.map(h => {
+        const val = rowData[h] !== undefined ? String(rowData[h]) : "";
+        return `"${val.replace(/"/g, '""')}"`;
+      }).join(",")
+    ].join("\\n");
+    
+    downloadFile(csvContent, `producttwin-${twin.product_id || "export"}.csv`, "text/csv;charset=utf-8");
   }
 
   return (
