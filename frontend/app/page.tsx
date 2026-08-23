@@ -306,14 +306,31 @@ export default function Home() {
           throw new Error("File exceeds Vercel's 4.5MB Serverless limit. Please use a smaller PDF or compress it before uploading!");
         }
 
-        // 1. Upload Document AND Analyze (Atomic Serverless Call)
-        const formData = new FormData();
-        formData.append("file", fileObj);
-        formData.append("product_id", productId);
+        // 1. Upload Document AND Analyze (Atomic Serverless Call - Base64 workaround for Vercel Multipart Bug)
+        const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            // Split out the "data:application/pdf;base64," prefix
+            const b64 = dataUrl.split(",")[1];
+            resolve(b64);
+          };
+          reader.onerror = error => reject(error);
+        });
 
-        const uploadRes = await fetch(`${getApiBaseUrl()}/document/upload_and_analyze`, {
+        const b64Data = await toBase64(fileObj);
+
+        const uploadRes = await fetch(`${getApiBaseUrl()}/document/upload_and_analyze_base64`, {
           method: "POST",
-          body: formData
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            product_id: productId,
+            filename: fileObj.name,
+            file_base64: b64Data
+          })
         });
 
         if (!uploadRes.ok) throw new Error("Upload and Analysis failed");
