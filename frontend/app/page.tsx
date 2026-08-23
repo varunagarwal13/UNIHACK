@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import KnowledgeGraphViewer from "./KnowledgeGraphViewer";
+
+const getApiBaseUrl = () => {
+  if (typeof window === "undefined") return "http://localhost:8000";
+  const hostname = window.location.hostname;
+  if (hostname.includes("github.dev")) {
+    const codespaceHost = hostname.replace("-3000", "-8000");
+    return `https://${codespaceHost}`;
+  }
+  return "http://localhost:8000";
+};
 
 type IdentifyMode = "sku" | "url";
 type BuildState = "idle" | "processing" | "done" | "evidence";
@@ -73,86 +84,22 @@ function seedFromString(input: string) {
 }
 
 function buildMockTwin(source: string) {
-  const seed = seedFromString(source || "PRODUCTTWIN-DEMO");
-
-  const pick = (arr: string[], offset: number) =>
-    arr[(seed + offset) % arr.length];
-
-  const skuNum = 1000 + (seed % 8999);
-
+  // Temporary mock returning the *real* Shared JSON Contract shape
   return {
-    name:
-      source && source.length > 2
-        ? `${pick(["Aero", "Nova", "Orbit", "Vertex"], 1)} ${pick(
-            ["Series", "Line", "Edge", "Pro"],
-            2
-          )}`
-        : "Aero Series Pro",
-
-    sku: `PT-${skuNum}`,
-
-    category: pick(MOCK_CATEGORIES, 3),
-
-    description:
-      "Digitally reconstructed product profile generated from the provided source. Includes structured specifications, material breakdown, and compliance signals for downstream product intelligence workflows.",
-
-    confidence: 82 + (seed % 15),
-
-    specs: [
-      {
-        label: "Dimensions",
-        value: `${30 + (seed % 20)} x ${20 + (seed % 15)} x ${
-          8 + (seed % 6)
-        } cm`,
-      },
-      {
-        label: "Weight",
-        value: `${(1 + (seed % 9) / 2).toFixed(1)} kg`,
-      },
-      {
-        label: "Material",
-        value: pick(MOCK_MATERIALS, 4),
-      },
-      {
-        label: "Power",
-        value: `${20 + (seed % 80)}W / 100–240V`,
-      },
-      {
-        label: "Warranty",
-        value: `${1 + (seed % 3)} year limited`,
-      },
-      {
-        label: "Color",
-        value: pick(["Graphite", "Arctic White", "Slate", "Onyx"], 5),
-      },
-    ],
-
-    materials: [
-      {
-        label: "Primary body",
-        value: pick(MOCK_MATERIALS, 6),
-      },
-      {
-        label: "Secondary component",
-        value: pick(MOCK_MATERIALS, 7),
-      },
-      {
-        label: "Recycled content",
-        value: `${10 + (seed % 40)}%`,
-      },
-    ],
-
-    compliance: [
-      pick(MOCK_CERTS, 8),
-      pick(MOCK_CERTS, 9),
-      pick(MOCK_CERTS, 10),
-    ].filter((v, i, arr) => arr.indexOf(v) === i),
-
-    sustainability: {
-      score: 60 + (seed % 35),
-      notes:
-        "Estimated from material composition and packaging footprint. Demo value — not verified.",
+    product_id: "ACS580-01-046A-4",
+    manufacturer: "ABB",
+    category: "Variable Frequency Drive",
+    attributes: {
+      voltage: { value: "380-480", unit: "V", confidence: 0.98, status: "verified" },
+      current: { value: 46, unit: "A", confidence: 0.97, status: "verified" },
+      power: { value: 22, unit: "kW", confidence: 0.96, status: "verified" },
+      weight: { value: 18.2, unit: "kg", confidence: 0.94, status: "verified" },
+      ip_rating: { value: "IP21", unit: "", confidence: 0.71, status: "conflict" }
     },
+    conflicts: [],
+    sources: [],
+    review_required: false,
+    confidence: 94
   };
 }
 
@@ -313,6 +260,7 @@ export default function Home() {
   const [mode, setMode] = useState<IdentifyMode>("sku");
   const [identifyValue, setIdentifyValue] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileObj, setFileObj] = useState<File | null>(null);
   const [buildState, setBuildState] = useState<BuildState>("idle");
   const [activeStage, setActiveStage] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -326,22 +274,69 @@ export default function Home() {
     (identifyValue.trim().length > 0 || fileName !== null) &&
     buildState === "idle";
 
-  const twin = useMemo(() => buildMockTwin(source), [source]);
+  const [twinData, setTwinData] = useState<any>(null);
+  const [showGraph, setShowGraph] = useState(false);
+  const twin = useMemo(() => twinData || buildMockTwin(source), [source, twinData]);
 
   function handleFile(file: File | null) {
     if (file && file.type === "application/pdf") {
       setFileName(file.name);
+      setFileObj(file);
+    } else {
+      setFileName(null);
+      setFileObj(null);
     }
   }
 
-  function handleBuild() {
+  async function handleBuild() {
     if (!canBuild) return;
 
-    setSource(fileName ?? identifyValue);
+    const targetSource = fileName ?? identifyValue;
+    setSource(targetSource);
     setActiveStage(0);
     setBuildState("processing");
     setReviewAction("none");
     setReviewNotes("");
+    
+    // Wire up to Person 3's real API endpoint!
+    try {
+      let productId = `PT-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      if (fileObj) {
+        // 1. Upload Document
+        const formData = new FormData();
+        formData.append("file", fileObj);
+        formData.append("product_id", productId);
+        
+        const uploadRes = await fetch(`${getApiBaseUrl()}/document/upload`, {
+          method: "POST",
+          body: formData
+        });
+        
+        if (!uploadRes.ok) throw new Error("Upload failed");
+        
+        // 2. Analyze Product
+        const analyzeRes = await fetch(`${getApiBaseUrl()}/product/analyze?product_id=${productId}&source_name=${encodeURIComponent(fileName!)}`, {
+          method: "POST"
+        });
+        if (!analyzeRes.ok) throw new Error("Analyze failed");
+      } else {
+        // 2. Analyze URL/SKU
+        const analyzeRes = await fetch(`${getApiBaseUrl()}/product/analyze?product_id=${productId}&source_name=${encodeURIComponent(identifyValue)}&url=${encodeURIComponent(identifyValue)}`, {
+          method: "POST"
+        });
+        if (!analyzeRes.ok) throw new Error("Analyze URL failed");
+      }
+
+      // 3. Get full Twin data
+      const getRes = await fetch(`${getApiBaseUrl()}/product/${productId}`);
+      if (getRes.ok) {
+        const data = await getRes.json();
+        setTwinData(data);
+      }
+    } catch (e) {
+      console.error("Failed to reach backend API, falling back to local mock.", e);
+    }
   }
 
   function reset() {
@@ -425,15 +420,15 @@ export default function Home() {
 
   function exportJSON() {
     const exportData = {
-      product: twin.name,
-      sku: twin.sku,
+      product: twin.manufacturer,
+      sku: twin.product_id,
       category: twin.category,
       source: source || "PRODUCTTWIN-DEMO",
       confidence: twin.confidence,
-      specifications: twin.specs,
-      materials: twin.materials,
-      compliance: twin.compliance,
-      sustainability: twin.sustainability,
+      attributes: twin.attributes,
+      conflicts: twin.conflicts,
+      sources: twin.sources,
+      review_required: twin.review_required,
       evidenceReview: {
         product: EVIDENCE.product,
         attribute: EVIDENCE.attribute,
@@ -461,48 +456,62 @@ export default function Home() {
   }
 
   function exportCSV() {
-    const rows = [
-      ["Field", "Value"],
-      ["Product", twin.name],
-      ["SKU", twin.sku],
-      ["Category", twin.category],
-      ["Source", source || "PRODUCTTWIN-DEMO"],
-      ["Confidence", `${twin.confidence}%`],
-      ["IP Rating", EVIDENCE.resolvedValue],
-      ["Evidence Confidence", `${EVIDENCE.confidence}%`],
-      ["Conflict Detected", EVIDENCE.conflict ? "Yes" : "No"],
-      [
-        "Reviewer Decision",
-        reviewAction === "approved"
-          ? "Approved"
-          : reviewAction === "review"
-            ? "Sent to Review"
-            : "Pending",
-      ],
-      [
-        "Reviewer Notes",
-        reviewNotes || "No reviewer notes added.",
-      ],
-      ["Sustainability Score", `${twin.sustainability.score}/100`],
-      ["Compliance", twin.compliance.join(", ")],
+    const baseHeaders = [
+      "MFR URL", "Ref URL 1", "Ref URL 2", "Ref URL 3", "Ref URL 4", "Ref URL 5", 
+      "PART_NUMBER", "Dept", "Class", "Fine", "SKU - MY_PART_NUMBER", "Mfg_Part_Num", 
+      "Part_Desc", "E1_Brand", "Unilog_Brand", "DIB_Brand", "Part_Manuf", 
+      "MANUFACTURER_NAME", "BRAND_NAME", "TRADE_NAME", "MANUFACTURER_PART_NUMBER", 
+      "ALTERNATE_PART_NUMBER", "Classpath", "MOBILE_DESC", "INVOICE_DESC", "SHORT_DESC", 
+      "LONG_DESC1", "RETAIL_DESC", "MARKETING_DESCRIPTION"
     ];
-
-    const csv = rows
-      .map((row) =>
-        row
-          .map((value) => {
-            const escaped = String(value).replace(/"/g, '""');
-            return `"${escaped}"`;
-          })
-          .join(",")
-      )
-      .join("\n");
-
-    downloadFile(
-      csv,
-      `producttwin-${twin.sku}.csv`,
-      "text/csv;charset=utf-8"
-    );
+    for (let i = 1; i <= 20; i++) baseHeaders.push(`ITEM_FEATURES_${i}`);
+    baseHeaders.push("With", "Standard/Approvals", "Prop 65", "Application", "Includes", "Product Name");
+    
+    for (let i = 1; i <= 50; i++) {
+      baseHeaders.push(`ATTRIBUTE_LABEL ${i}`, `ATTRIBUTE_VALUE ${i}`, `ATTRIBUTE_UOM ${i}`);
+    }
+    
+    const trailingHeaders = [
+      "UPC", "EAN", "GTIN", "UNSPSC", "Warranty", "List Price", "Selling Qty", "Selling UOM", 
+      "Standard Packaging Information", "LENGTH", "LENGTH_UOM", "HEIGHT", "HEIGHT_UOM", 
+      "WIDTH", "WIDTH_UOM", "WEIGHT", "WEIGHT_UOM", "VOLUME", "VOLUME_UOM", "Product Image", 
+      "Alternate Image 1", "Alternate Image 2", "Alternate Image 3", "Alternate Image 4", 
+      "SDS", "SDS_1", "Warranty Information", "Catalog", "Specification Sheet", 
+      "Instruction/Installation Manual", "Service Manual", "Owners/User Manual", "Line Drawing", 
+      "MTR", "RoHS", "Full Engineering Drawing", "Energy Star Guide", "Technical Bulletin", 
+      "Submittal", "Compatibility Chart", "Size Chart", "Product Label/Insert", "Video Link", 
+      "Video Link 1", "Country Of Origin", "Discontinued", "Actual Image (Yes/No)"
+    ];
+    
+    const allHeaders = [...baseHeaders, ...trailingHeaders];
+    const rowData: Record<string, any> = {};
+    
+    rowData["MANUFACTURER_NAME"] = twin.manufacturer || "";
+    rowData["Mfg_Part_Num"] = twin.product_id || "";
+    rowData["MANUFACTURER_PART_NUMBER"] = twin.product_id || "";
+    rowData["Product Name"] = twin.category || "";
+    rowData["MFR URL"] = source || "";
+    
+    let attrIndex = 1;
+    if (twin.attributes) {
+      for (const [key, attrObj] of Object.entries(twin.attributes)) {
+        if (attrIndex > 50) break;
+        rowData[`ATTRIBUTE_LABEL ${attrIndex}`] = key.replace(/_/g, " ");
+        rowData[`ATTRIBUTE_VALUE ${attrIndex}`] = (attrObj as any).value || "";
+        rowData[`ATTRIBUTE_UOM ${attrIndex}`] = (attrObj as any).unit || "";
+        attrIndex++;
+      }
+    }
+    
+    const csvContent = [
+      allHeaders.map(h => `"${h}"`).join(","),
+      allHeaders.map(h => {
+        const val = rowData[h] !== undefined ? String(rowData[h]) : "";
+        return `"${val.replace(/"/g, '""')}"`;
+      }).join(",")
+    ].join("\\n");
+    
+    downloadFile(csvContent, `producttwin-${twin.product_id || "export"}.csv`, "text/csv;charset=utf-8");
   }
 
   return (
@@ -764,9 +773,16 @@ export default function Home() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setReviewAction("approved")
-                      }
+                      onClick={async () => {
+                        setReviewAction("approved");
+                        try {
+                          await fetch(`${getApiBaseUrl()}/review/${twin.product_id}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ attribute_name: EVIDENCE.attribute, approved_value: EVIDENCE.resolvedValue, notes: reviewNotes })
+                          });
+                        } catch(e) {}
+                       }}
                       className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
                         reviewAction === "approved"
                           ? "border-teal bg-teal text-ink"
@@ -780,9 +796,16 @@ export default function Home() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setReviewAction("review")
-                      }
+                      onClick={async () => {
+                        setReviewAction("review");
+                        try {
+                          await fetch(`${getApiBaseUrl()}/review/${twin.product_id}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ attribute_name: EVIDENCE.attribute, approved_value: "REVIEW", notes: reviewNotes })
+                          });
+                        } catch(e) {}
+                      }}
                       className={`rounded-md border px-4 py-2.5 font-mono text-xs tracking-wide uppercase transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal ${
                         reviewAction === "review"
                           ? "border-amber bg-amber text-ink"
@@ -894,6 +917,14 @@ export default function Home() {
                   </button>
 
                   <button
+                    onClick={() => setShowGraph(true)}
+                    className="flex items-center gap-2 rounded-md border border-line bg-panel-2 px-3 py-1.5 font-mono text-xs tracking-wide text-ivory uppercase transition hover:border-teal hover:text-teal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                    View Knowledge Graph
+                  </button>
+
+                  <button
                     onClick={exportJSON}
                     className="flex items-center gap-2 rounded-md border border-line bg-panel-2 px-3 py-1.5 font-mono text-xs tracking-wide text-ivory uppercase transition hover:border-teal hover:text-teal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
                   >
@@ -918,14 +949,14 @@ export default function Home() {
 
                 <div>
                   <h2 className="font-display text-2xl font-semibold text-ivory">
-                    {twin.name}
+                    {twin.manufacturer}
                   </h2>
 
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-mist">
                     <span>
-                      SKU{" "}
+                      Product ID{" "}
                       <span className="text-ivory">
-                        {twin.sku}
+                        {twin.product_id}
                       </span>
                     </span>
 
@@ -938,10 +969,6 @@ export default function Home() {
                       </span>
                     </span>
                   </div>
-
-                  <p className="mt-3 max-w-2xl text-sm text-mist">
-                    {twin.description}
-                  </p>
                 </div>
               </div>
 
@@ -952,17 +979,20 @@ export default function Home() {
                 </span>
 
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {twin.specs.map((spec) => (
+                  {Object.entries(twin.attributes).map(([key, attr]: [string, any]) => (
                     <div
-                      key={spec.label}
+                      key={key}
                       className="rounded-md border border-line bg-panel-2 px-4 py-3"
                     >
-                      <p className="font-mono text-[10px] tracking-wide text-mist uppercase">
-                        {spec.label}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-mono text-[10px] tracking-wide text-mist uppercase">
+                          {key.replace('_', ' ')}
+                        </p>
+                        <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded border ${attr.status === 'verified' ? 'text-teal border-teal/30 bg-teal/5' : 'text-amber border-amber/30 bg-amber/5'}`}>{attr.status}</span>
+                      </div>
 
-                      <p className="mt-1 text-sm text-ivory">
-                        {spec.value}
+                      <p className="mt-2 text-lg text-ivory">
+                        {attr.value} <span className="text-sm text-mist">{attr.unit}</span>
                       </p>
                     </div>
                   ))}
@@ -973,78 +1003,13 @@ export default function Home() {
               <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="rounded-md border border-line bg-panel-2 p-4">
                   <p className="font-mono text-[11px] tracking-[0.2em] text-mist uppercase">
-                    Materials
-                  </p>
-
-                  <ul className="mt-3 flex flex-col gap-2">
-                    {twin.materials.map((m) => (
-                      <li
-                        key={m.label}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="text-mist">
-                          {m.label}
-                        </span>
-
-                        <span className="text-ivory">
-                          {m.value}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="rounded-md border border-line bg-panel-2 p-4">
-                  <p className="font-mono text-[11px] tracking-[0.2em] text-mist uppercase">
-                    Compliance / Certifications
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {twin.compliance.map((c) => (
-                      <span
-                        key={c}
-                        className="rounded border border-line bg-panel px-2.5 py-1 font-mono text-[11px] text-ivory"
-                      >
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-md border border-line bg-panel-2 p-4">
-                  <p className="font-mono text-[11px] tracking-[0.2em] text-mist uppercase">
-                    Sustainability
-                  </p>
-
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel">
-                      <div
-                        className="h-full rounded-full bg-teal"
-                        style={{
-                          width: `${twin.sustainability.score}%`,
-                        }}
-                      />
-                    </div>
-
-                    <span className="font-mono text-xs text-ivory">
-                      {twin.sustainability.score}/100
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-xs text-mist">
-                    {twin.sustainability.notes}
-                  </p>
-                </div>
-
-                <div className="rounded-md border border-line bg-panel-2 p-4">
-                  <p className="font-mono text-[11px] tracking-[0.2em] text-mist uppercase">
                     Confidence Score
                   </p>
 
                   <div className="mt-3 flex items-center gap-3">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel">
                       <div
-                        className="h-full rounded-full bg-amber"
+                        className="h-full rounded-full bg-teal"
                         style={{
                           width: `${twin.confidence}%`,
                         }}
@@ -1057,8 +1022,7 @@ export default function Home() {
                   </div>
 
                   <p className="mt-2 text-xs text-mist">
-                    Extraction confidence based on source clarity and field
-                    completeness.
+                    Extraction confidence based on source clarity and field completeness.
                   </p>
                 </div>
               </div>
@@ -1320,6 +1284,13 @@ export default function Home() {
             )}
         </div>
       </main>
+
+      {showGraph && (
+        <KnowledgeGraphViewer 
+          productId={twin.product_id} 
+          onClose={() => setShowGraph(false)} 
+        />
+      )}
     </div>
   );
 }
