@@ -122,5 +122,17 @@ class TestProductTwinAPI(unittest.TestCase):
         self.assertIn("voltage", response.text)
         self.assertIn("Content-Disposition", response.headers)
 
+    def test_get_product_graph(self):
+        # Trigger analysis
+        self.client.post("/product/analyze?product_id=ACS580-01-046A-4&source_name=ABB Website&url=https://new.abb.com/drives/low-voltage-ac/general-purpose/acs580")
+        
+        # Call GET /product/ACS580-01-046A-4/graph
+        response = self.client.get("/product/ACS580-01-046A-4/graph")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("nodes", data)
+        self.assertIn("edges", data)
+        self.assertGreaterEqual(len(data["nodes"]), 1)
+
 if __name__ == "__main__":
     unittest.main()

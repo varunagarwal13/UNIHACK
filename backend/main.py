@@ -12,6 +12,7 @@ from database.database import engine, get_db, Base
 from database.models import Product, Source, Attribute, Evidence, Conflict
 from backend.schemas import ProductResponse, ReviewRequest, AttributeValueSchema, EvidenceSchema, ConflictSchema
 from backend.pipeline_orchestrator import PipelineOrchestrator
+from ai.graph.knowledge_graph import build_knowledge_graph
 
 # Initialize database tables
 Base.metadata.create_all(bind=engine)
@@ -330,5 +331,22 @@ def export_product_twin(
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename=product_twin_{id}.csv"}
         )
+
+
+@app.get("/product/{id}/graph", summary="Get product knowledge graph")
+def get_product_knowledge_graph(id: str, db: Session = Depends(get_db)):
+    """
+    Returns the Network Graph payload (nodes and edges) for the product twin database
+    by invoking build_knowledge_graph.
+    """
+    product = db.query(Product).filter(Product.id == id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    try:
+        graph_data = build_knowledge_graph(db)
+        return graph_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build knowledge graph: {str(e)}")
 
 
