@@ -74,6 +74,38 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=f"Parsing error: {str(e)}")
 
 
+@app.post("/document/upload_and_analyze")
+async def upload_and_analyze(
+    product_id: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Serverless-compatible atomic route that uploads the file and analyzes it in a single execution.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    file_location = os.path.join(UPLOAD_DIR, file.filename)
+    try:
+        with open(file_location, "wb+") as f:
+            shutil.copyfileobj(file.file, f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        
+    try:
+        review_required = orchestrator.run_pipeline(
+            product_id=product_id,
+            source=file.filename,
+            source_type="pdf",
+            db=db,
+            url=None
+        )
+        return {"message": "Upload and analysis completed successfully", "product_id": product_id, "review_required": review_required}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/product/analyze", summary="Run pipeline analysis on chunks and save twin attributes")
 async def analyze_product(
     product_id: str,

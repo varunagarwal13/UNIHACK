@@ -302,24 +302,19 @@ export default function Home() {
       let productId = `PT-${Math.floor(1000 + Math.random() * 9000)}`;
 
       if (fileObj) {
-        // 1. Upload Document
+        // 1. Upload Document AND Analyze (Atomic Serverless Call)
         const formData = new FormData();
         formData.append("file", fileObj);
         formData.append("product_id", productId);
 
-        const uploadRes = await fetch(`${getApiBaseUrl()}/document/upload`, {
+        const uploadRes = await fetch(`${getApiBaseUrl()}/document/upload_and_analyze`, {
           method: "POST",
           body: formData
         });
 
-        if (!uploadRes.ok) throw new Error("Upload failed");
+        if (!uploadRes.ok) throw new Error("Upload and Analysis failed");
 
         setActiveStage(1);
-        // 2. Analyze Product
-        const analyzeRes = await fetch(`${getApiBaseUrl()}/product/analyze?product_id=${productId}&source_name=${encodeURIComponent(fileName!)}`, {
-          method: "POST"
-        });
-        if (!analyzeRes.ok) throw new Error("Analyze failed");
       } else {
         setActiveStage(1);
         // 2. Analyze URL/SKU
